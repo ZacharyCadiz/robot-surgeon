@@ -114,7 +114,20 @@ void loop()
     // PART ONE: Bad Robot Surgeon
     // TODO: Steps 1.5, 6, 9, 10. update all the motor states according to their ID, indexed at 0
     // HINT: Use the updateState and updateCmd functions similar to lab 1. Remember that there are both a front and a back CAN bus.
-    
+    updateState(&front_state[0], 0, 1);
+    updateState(&front_state[1], 1, 1);
+    updateState(&front_state[2], 2, 1);
+    updateCmd(&front_state[0], back_state[0].pos, Kp, Kd);
+    updateCmd(&front_state[1], back_state[1].pos, Kp, Kd);
+    updateCmd(&front_state[2], back_state[2].pos, Kp, Kd);
+
+    updateState(&back_state[0], 0, 0);
+    updateState(&back_state[1], 1, 0);
+    updateState(&back_state[2], 2, 0);
+    updateCmd(&back_state[0], front_state[0].pos, Kp, Kd);
+    updateCmd(&back_state[1], front_state[1].pos, Kp, Kd);
+    updateCmd(&back_state[2], front_state[2].pos, Kp, Kd);
+
     // Sanitizes your computed current commands to make the robot safer. Use this for all parts, leave as is.
     for (int i = 0; i < 3; i++) {
       sanitize_current_command(back_state[i].cmd, back_state[i].pos, back_state[i].vel); // sanitize right leg commands
@@ -143,17 +156,24 @@ void loop()
     }
 
     //PART TWO: Forward Kinematics
-    //Uncomment this block when starting the forward kinematics part. This for loop gets the actuator angles for each motor
-    // for (int i = 0; i < 3; i++)
-    // {
-    //   actuator_angles(i) = bus_front.Get(i).Position();
-    //   actuator_velocities(i) = bus_front.Get(i).Velocity();
-    // }
-    // BLA::Matrix<3> cartesian_coordinates = forward_kinematics(actuator_angles, pupper_leg_config); // This line finds the cartesian coordinates from the forward kinematics function
-    // print_vector(cartesian_coordinates); // use the print_vector functin to cleanly print out the cartesian coordinates
+    // Uncomment this block when starting the forward kinematics part. This for loop gets the actuator angles for each motor
+    for (int i = 0; i < 3; i++)
+    {
+      actuator_angles(i) = bus_front.Get(i).Position();
+      actuator_velocities(i) = bus_front.Get(i).Velocity();
+    }
+    BLA::Matrix<3> cartesian_coordinates = forward_kinematics(actuator_angles, pupper_leg_config); // This line finds the cartesian coordinates from the forward kinematics function
+    print_vector(cartesian_coordinates); // use the print_vector functin to cleanly print out the cartesian coordinates
 
     // TODO: Step 14. Create a Safety Box
     // Check if the cartesian coordinates are outside a box you determine. If outside, print OUTSIDE SAFETY BOX
+    if ( (-0.15 > cartesian_coordinates(0) || cartesian_coordinates(0) > 0.15) ||
+         (-0.15 > cartesian_coordinates(1) || cartesian_coordinates(1) > 0.15) ||
+         (0.00 > cartesian_coordinates(2) || cartesian_coordinates(2) > 0.20) ) {
+      Serial.println("OUTSIDE SAFETY BOX");
+      bus_front.CommandTorques(2250 * flip, 2250 * flip, 2250 * flip, 0, C610Subbus::kOneToFourBlinks);
+      flip *= -1;
+    }
     
     // TODO: Step 15. Do a safety dance if outside the safety bounds
     // In the for loop from Step 14, command one arm to oscillate every cycle to create haptic feedback
